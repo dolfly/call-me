@@ -92,6 +92,7 @@ const config = {
     pushVapidPrivateKey: process.env.PUSH_VAPID_PRIVATE_KEY || '',
     pushVapidEmail: process.env.PUSH_VAPID_EMAIL || 'mailto:admin@example.com',
     randomImageUrl: process.env.RANDOM_IMAGE_URL || '',
+    ringTimeout: parseInt(process.env.RINGING_TIMEOUT, 10) || 30,
     apiBasePath: '/api/v1',
     swaggerDocument: yaml.load(fs.readFileSync(path.join(__dirname, '/api/swagger.yaml'), 'utf8')),
 };
@@ -529,6 +530,7 @@ function handleConnection(socket) {
             message: 'Hello Client!',
             iceServers: config.iceServers,
             pushEnabled: config.pushEnabled,
+            ringTimeout: config.ringTimeout,
         });
     }
 

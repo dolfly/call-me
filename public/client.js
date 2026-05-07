@@ -90,6 +90,8 @@ let callingTimerId = null; // Timer for calling overlay
 let callingElapsed = 0; // Seconds elapsed while calling
 let incomingCallData = null; // Pending incoming call data
 let incomingCallTimerId = null; // Auto-decline timer for incoming call
+let ringTimeout = 30; // Seconds before unanswered call is auto-cancelled/declined (from server)
+let ringingAudio = null; // Looping ring sound for incoming call
 let thisConnection;
 let camera = 'user';
 let stream;
@@ -777,6 +779,9 @@ function showCallingOverlay(targetUser) {
     callingTimerId = setInterval(() => {
         callingElapsed++;
         if (callingTimer) callingTimer.textContent = callingElapsed + 's';
+        if (callingElapsed >= ringTimeout) {
+            handleCancelCall();
+        }
     }, 1000);
 }
 
@@ -1375,6 +1380,9 @@ function handlePing(data) {
     if (data.pushEnabled !== undefined) {
         pushEnabled = data.pushEnabled;
     }
+    if (data.ringTimeout !== undefined) {
+        ringTimeout = data.ringTimeout;
+    }
     sendMsg({
         type: 'pong',
         message: {
@@ -1717,7 +1725,6 @@ function offerAccept(data) {
 
     incomingCallData = data;
     showIncomingCallOverlay(data.from);
-    sound('ring');
 }
 
 // Show incoming call overlay
@@ -1725,20 +1732,47 @@ function showIncomingCallOverlay(callerName) {
     if (!incomingCallOverlay) return;
     if (incomingCallUsername) incomingCallUsername.textContent = callerName;
 
-    // Reset timer bar animation
+    // Reset timer bar animation with dynamic duration
     if (incomingCallTimer) {
+        incomingCallTimer.style.setProperty('--ring-duration', ringTimeout + 's');
         incomingCallTimer.style.animation = 'none';
         incomingCallTimer.offsetHeight; // Force reflow
         incomingCallTimer.style.animation = '';
     }
 
+    // Start looping ring sound with a 1s gap between plays
+    if (ringingAudio) {
+        ringingAudio.pause();
+        ringingAudio = null;
+    }
+    let ringingDelayTimer = null;
+    function playRing() {
+        if (!ringingAudio) return;
+        ringingAudio.currentTime = 0;
+        ringingAudio.play().catch(() => {});
+    }
+    ringingAudio = new Audio('./assets/ring.wav');
+    ringingAudio.volume = 0.5;
+    ringingAudio.addEventListener('ended', () => {
+        ringingDelayTimer = setTimeout(playRing, 3000);
+    });
+    // Store the delay timer on the audio object so hideIncomingCallOverlay can clear it
+    ringingAudio._delayTimer = null;
+    Object.defineProperty(ringingAudio, '_delayTimer', {
+        get: () => ringingDelayTimer,
+        set: (v) => {
+            ringingDelayTimer = v;
+        },
+    });
+    playRing();
+
     incomingCallOverlay.style.display = 'flex';
 
-    // Auto-decline after 10 seconds
+    // Auto-decline after ringTimeout seconds
     if (incomingCallTimerId) clearTimeout(incomingCallTimerId);
     incomingCallTimerId = setTimeout(() => {
         handleDeclineIncomingCall();
-    }, 10000);
+    }, ringTimeout * 1000);
 }
 
 // Hide incoming call overlay
@@ -1748,6 +1782,11 @@ function hideIncomingCallOverlay() {
     if (incomingCallTimerId) {
         clearTimeout(incomingCallTimerId);
         incomingCallTimerId = null;
+    }
+    if (ringingAudio) {
+        clearTimeout(ringingAudio._delayTimer);
+        ringingAudio.pause();
+        ringingAudio = null;
     }
     incomingCallData = null;
 }

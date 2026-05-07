@@ -3010,7 +3010,7 @@ z-index:
     height: 100%;
     width: 100%;
     background: linear-gradient(90deg, var(--success-color), var(--primary-color));
-    animation: incomingTimerBar 10s linear forwards;
+    animation: incomingTimerBar var(--ring-duration, 30s) linear forwards;
     transform-origin: left;
 }
 
