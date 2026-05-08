@@ -1922,7 +1922,7 @@ function showCameraOffOverlay(type, show) {
         type === 'local'
             ? document.getElementById('localVideoContainer')
             : document.getElementById('remoteVideoContainer');
-    let overlay = container.querySelector('.camera-off-overlay');
+    let overlay = container.querySelector(':scope > .camera-off-overlay');
 
     if (!overlay) {
         overlay = document.createElement('div');
